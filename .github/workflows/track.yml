@@ -1,0 +1,38 @@
+name: Track train punctuality
+
+on:
+  schedule:
+    # Runs once on weekday evenings, well after all three legs have
+    # completed (07:57 / 17:22 / 17:52 UK local time). 20:00 UTC is safely
+    # after all of them whether the UK is on GMT or BST, so this doesn't
+    # need adjusting twice a year for the clock change.
+    - cron: "0 20 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Fetch today's train data
+        env:
+          RTT_API_TOKEN: ${{ secrets.RTT_API_TOKEN }}
+        run: python scripts/track.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "train-tracker-bot"
+          git config user.email "actions@github.com"
+          git add data/history.json
+          git diff --cached --quiet || git commit -m "Log train data for $(date +'%Y-%m-%d')"
+          git push

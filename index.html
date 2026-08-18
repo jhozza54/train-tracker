@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Often Is My Train Late</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0906;
+    --panel: #15130d;
+    --panel-2: #1c1810;
+    --rule: #372f1f;
+    --amber: #ffb000;
+    --amber-dim: #7a5500;
+    --cream: #ece6d6;
+    --cream-dim: #9a9382;
+    --green: #4fd67a;
+    --red: #ff5c4d;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 50% 0%, rgba(255,176,0,0.05), transparent 60%);
+    color: var(--cream);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    min-height: 100vh;
+    padding: 24px 16px 64px;
+  }
+
+  .board {
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  header.station {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid var(--amber-dim);
+    padding-bottom: 12px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  header.station h1 {
+    font-family: 'VT323', monospace;
+    font-size: 2.4rem;
+    letter-spacing: 0.03em;
+    color: var(--amber);
+    margin: 0;
+    text-shadow: 0 0 12px rgba(255,176,0,0.35);
+  }
+
+  header.station .clock {
+    font-size: 0.85rem;
+    color: var(--cream-dim);
+    letter-spacing: 0.05em;
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 16px 18px;
+  }
+
+  .stat .value {
+    font-family: 'VT323', monospace;
+    font-size: 2.8rem;
+    line-height: 1;
+    color: var(--amber);
+  }
+
+  .stat.good .value { color: var(--green); }
+  .stat.bad .value { color: var(--red); }
+
+  .stat .label {
+    margin-top: 6px;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cream-dim);
+  }
+
+  section.legs { margin-bottom: 32px; }
+
+  h2.section-title {
+    font-family: 'VT323', monospace;
+    font-size: 1.3rem;
+    letter-spacing: 0.06em;
+    color: var(--cream-dim);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 6px;
+    margin: 0 0 10px;
+  }
+
+  .leg-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 4px 16px;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+  }
+
+  .leg-row .route {
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+  }
+  .leg-row .route .sched {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--cream-dim);
+    margin-top: 2px;
+  }
+
+  .leg-row .status {
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .status.on-time { color: var(--green); }
+  .status.late { color: var(--amber); }
+  .status.very-late { color: var(--red); }
+  .status.cancelled { color: var(--red); }
+  .status.pending { color: var(--cream-dim); }
+
+  .leg-row .actual-time {
+    text-align: right;
+    color: var(--cream-dim);
+    font-size: 0.85rem;
+    min-width: 52px;
+  }
+
+  section.history table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  section.history th, section.history td {
+    text-align: left;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  section.history th {
+    color: var(--cream-dim);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.68rem;
+  }
+  section.history td.status-cell { font-weight: 600; }
+
+  footer {
+    margin-top: 40px;
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--cream-dim);
+    letter-spacing: 0.04em;
+  }
+
+  .empty-note {
+    color: var(--cream-dim);
+    font-size: 0.85rem;
+    padding: 12px 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .flap { animation: flap-in 0.5s steps(6) 1; }
+  }
+  @keyframes flap-in {
+    from { opacity: 0.2; transform: translateY(-2px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+  <div class="board">
+    <header class="station">
+      <h1>HOW OFTEN IS MY TRAIN LATE</h1>
+      <div class="clock" id="clock"></div>
+    </header>
+
+    <div class="hero" id="hero">
+      <!-- filled by JS -->
+    </div>
+
+    <section class="legs">
+      <h2 class="section-title">Today</h2>
+      <div id="today-rows"></div>
+    </section>
+
+    <section class="history">
+      <h2 class="section-title">Recent history</h2>
+      <div id="history-wrap"></div>
+    </section>
+
+    <footer>Data via Realtime Trains &middot; tracking Weston Milton, Bath Spa &amp; Bristol Temple Meads, Mon&ndash;Fri</footer>
+  </div>
+
+<script>
+const LEGS = [
+  { id: "wnm_bth", label: "Weston Milton \u2192 Bath Spa", scheduled: "07:57" },
+  { id: "bth_bri", label: "Bath Spa \u2192 Bristol Temple Meads", scheduled: "17:22" },
+  { id: "bri_wnm", label: "Bristol Temple Meads \u2192 Weston Milton", scheduled: "17:52" },
+];
+
+function updateClock() {
+  const el = document.getElementById('clock');
+  const now = new Date();
+  el.textContent = now.toLocaleString('en-GB', {
+    weekday: 'short', day: '2-digit', month: 'short',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+updateClock();
+setInterval(updateClock, 30000);
+
+function statusClass(rec) {
+  if (!rec) return 'pending';
+  if (rec.cancelled) return 'cancelled';
+  if (rec.no_data || rec.lateness_minutes === null || rec.lateness_minutes === undefined) return 'pending';
+  if (rec.lateness_minutes <= 1) return 'on-time';
+  if (rec.lateness_minutes < 10) return 'late';
+  return 'very-late';
+}
+
+function statusText(rec) {
+  if (!rec) return 'NO DATA YET';
+  if (rec.cancelled) return 'CANCELLED';
+  if (rec.no_data || rec.lateness_minutes === null || rec.lateness_minutes === undefined) return 'NO DATA';
+  if (rec.lateness_minutes <= 1) return 'ON TIME';
+  return `${rec.lateness_minutes} MIN LATE`;
+}
+
+async function loadData() {
+  try {
+    const res = await fetch('data/history.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('no data file');
+    return await res.json();
+  } catch (e) {
+    return { records: [] };
+  }
+}
+
+function render(store) {
+  const records = store.records || [];
+  const today = new Date().toISOString().slice(0, 10);
+
+  // ---- Hero stats ----
+  const validRecords = records.filter(r => !r.no_data);
+  const totalLate = validRecords.reduce((sum, r) => sum + (r.cancelled ? 0 : (r.lateness_minutes || 0)), 0);
+  const cancelledCount = validRecords.filter(r => r.cancelled).length;
+  const onTimeCount = validRecords.filter(r => !r.cancelled && (r.lateness_minutes || 0) <= 1).length;
+  const onTimePct = validRecords.length ? Math.round((onTimeCount / validRecords.length) * 100) : null;
+  const daysTracked = new Set(validRecords.map(r => r.date)).size;
+  const firstDate = validRecords.length ? validRecords.map(r => r.date).sort()[0] : null;
+
+  const heroEl = document.getElementById('hero');
+  heroEl.innerHTML = `
+    <div class="stat flap">
+      <div class="value">${totalLate}</div>
+      <div class="label">Minutes late since tracking began${firstDate ? ' (' + firstDate + ')' : ''}</div>
+    </div>
+    <div class="stat flap ${onTimePct === null ? '' : (onTimePct >= 80 ? 'good' : (onTimePct < 50 ? 'bad' : ''))}">
+      <div class="value">${onTimePct === null ? '\u2014' : onTimePct + '%'}</div>
+      <div class="label">On-time rate</div>
+    </div>
+    <div class="stat flap ${cancelledCount > 0 ? 'bad' : ''}">
+      <div class="value">${cancelledCount}</div>
+      <div class="label">Cancellations logged</div>
+    </div>
+    <div class="stat flap">
+      <div class="value">${daysTracked}</div>
+      <div class="label">Weekdays tracked</div>
+    </div>
+  `;
+
+  // ---- Today ----
+  const todayRowsEl = document.getElementById('today-rows');
+  todayRowsEl.innerHTML = LEGS.map(leg => {
+    const rec = records.find(r => r.date === today && r.leg === leg.id);
+    const cls = statusClass(rec);
+    const actual = rec && rec.actual ? rec.actual : '--:--';
+    return `
+      <div class="leg-row">
+        <div class="route">${leg.label}<span class="sched">scheduled ${leg.scheduled}</span></div>
+        <div class="actual-time">${actual}</div>
+        <div class="status ${cls}">${statusText(rec)}</div>
+      </div>`;
+  }).join('');
+
+  // ---- History table ----
+  const historyWrap = document.getElementById('history-wrap');
+  const recent = [...records].filter(r => !r.no_data || r.date !== today)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 25);
+
+  if (!recent.length) {
+    historyWrap.innerHTML = '<p class="empty-note">No history yet — once the daily tracker has run a few times, records will appear here.</p>';
+    return;
+  }
+
+  const legLabel = id => (LEGS.find(l => l.id === id) || {}).label || id;
+
+  historyWrap.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Route</th><th>Sched.</th><th>Actual</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        ${recent.map(r => `
+          <tr>
+            <td>${r.date}</td>
+            <td>${legLabel(r.leg)}</td>
+            <td>${r.scheduled}</td>
+            <td>${r.actual || '\u2014'}</td>
+            <td class="status-cell status ${statusClass(r)}">${statusText(r)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+loadData().then(render);
+</script>
+</body>
+</html>
