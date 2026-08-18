@@ -1,3 +1,31 @@
 {
-  "records": []
+  "records": [
+    {
+      "date": "2026-08-18",
+      "leg": "bri_wnm",
+      "scheduled": "17:52",
+      "actual": "17:52",
+      "lateness_minutes": 0,
+      "cancelled": false,
+      "no_data": false
+    },
+    {
+      "date": "2026-08-18",
+      "leg": "bth_bri",
+      "scheduled": "17:22",
+      "actual": "17:10",
+      "lateness_minutes": 0,
+      "cancelled": false,
+      "no_data": false
+    },
+    {
+      "date": "2026-08-18",
+      "leg": "wnm_bth",
+      "scheduled": "07:57",
+      "actual": "08:08",
+      "lateness_minutes": 11,
+      "cancelled": false,
+      "no_data": false
+    }
+  ]
 }
