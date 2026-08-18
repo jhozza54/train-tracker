@@ -12,12 +12,14 @@ Run manually with:  RTT_API_TOKEN=xxxx python scripts/track.py
 import json
 import os
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 
 API_BASE = "https://data.rtt.io"
+LONDON = ZoneInfo("Europe/London")
 DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "history.json"
 
 # James's three commuter legs. Times are local (Europe/London) scheduled
@@ -54,6 +56,16 @@ LEGS = [
         "search_to": "18:40",
     },
 ]
+
+
+def local_hhmm(value: str | None) -> str | None:
+    """RTT returns ISO 8601 that may be UTC or offset-bearing; we want UK local."""
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(LONDON)
+    return parsed.strftime("%H:%M")
 
 
 def resolve_token(token: str) -> str:
@@ -127,24 +139,24 @@ def fetch_leg(leg: dict, day: str, token: str) -> dict:
         resp.raise_for_status()
     data = resp.json()
 
-    services = data.get("services", [])
-    best = None
-    for svc in services:
-        dep = svc.get("temporalData", {}).get("departure")
-        if dep:
-            best = svc
+    dep = None
+    for svc in data.get("services", []):
+        candidate = svc.get("temporalData", {}).get("departure")
+        if not candidate:
+            continue
+        if local_hhmm(candidate.get("scheduleAdvertised")) == leg["scheduled"]:
+            dep = candidate
             break
 
-    if best is None:
+    if dep is None:
+        # The scheduled service wasn't in the line-up at all: either it didn't run
+        # or the window missed it. Either way we have no reading for the day.
         record["no_data"] = True
         return record
 
-    dep = best["temporalData"]["departure"]
     record["cancelled"] = bool(dep.get("isCancelled"))
     record["lateness_minutes"] = dep.get("realtimeAdvertisedLateness")
-    actual = dep.get("realtimeActual")
-    if actual:
-        record["actual"] = actual[11:16]  # HH:MM out of the ISO datetime
+    record["actual"] = local_hhmm(dep.get("realtimeActual"))
 
     return record
 
