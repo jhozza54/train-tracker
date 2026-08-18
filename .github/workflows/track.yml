@@ -8,6 +8,12 @@ on:
     # need adjusting twice a year for the clock change.
     - cron: "0 20 * * 1-5"
   workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - data/history.json
+      - .github/workflows/track.yml
 
 permissions:
   contents: write
@@ -15,6 +21,11 @@ permissions:
 jobs:
   track:
     runs-on: ubuntu-latest
+    env:
+      FTP_HOST: ${{ secrets.FTP_HOST }}
+      FTP_USER: ${{ secrets.FTP_USER }}
+      LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      FTP_TARGET_DIR: ${{ vars.FTP_TARGET_DIR || 'public_html' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,15 +35,46 @@ jobs:
 
       - run: pip install requests
 
+      # Skipped on push: a push can land at any time of day, and logging a
+      # day before all three legs have run would let the de-duplication in
+      # track.py lock in a half-finished record for that date.
       - name: Fetch today's train data
+        if: github.event_name != 'push'
         env:
           RTT_API_TOKEN: ${{ secrets.RTT_API_TOKEN }}
         run: python scripts/track.py
 
       - name: Commit updated data
+        if: github.event_name != 'push'
         run: |
           git config user.name "train-tracker-bot"
           git config user.email "actions@github.com"
           git add data/history.json
           git diff --cached --quiet || git commit -m "Log train data for $(date +'%Y-%m-%d')"
           git push
+
+      - name: Upload dashboard to web host
+        if: env.FTP_HOST != ''
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+          # Stage exactly what the site needs, so mirror can't push the
+          # scripts, workflow or README to a public web root.
+          mkdir -p site/data
+          cp index.html site/
+          cp data/history.json site/data/
+
+          # --env-password keeps the password out of argv and out of any
+          # command string, so characters like quotes or commas in it can't
+          # break the upload or leak into logs.
+          lftp -u "$FTP_USER" --env-password "$FTP_HOST" <<LFTP
+            set cmd:fail-exit true
+            set ftp:ssl-force true
+            set ftp:ssl-protect-data true
+            # If your host presents a shared/mismatched certificate, lftp will
+            # refuse to connect. Verify the hostname with them first; only then
+            # relax this by adding: set ssl:verify-certificate no
+            set ssl:verify-certificate true
+            mirror --reverse --verbose --only-newer site/ "$FTP_TARGET_DIR"
+            bye
+          LFTP
