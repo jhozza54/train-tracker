@@ -56,6 +56,45 @@ LEGS = [
 ]
 
 
+def resolve_token(token: str) -> str:
+    """Return a token usable as a Bearer against the data endpoints.
+
+    RTT issues either a long-life access token or a long-life *refresh* token.
+    A refresh token is rejected (401) by the data endpoints and has to be
+    swapped for a short-life access token first, so probe /api/info and fall
+    back to the swap when the raw token isn't accepted directly.
+    """
+    probe = requests.get(
+        f"{API_BASE}/api/info",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=20,
+    )
+    if probe.ok:
+        return token
+    if probe.status_code != 401:
+        probe.raise_for_status()
+
+    swap = requests.get(
+        f"{API_BASE}/api/get_access_token",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=20,
+    )
+    if swap.ok:
+        access = swap.json().get("token")
+        if access:
+            return access
+        print("get_access_token returned no token field", file=sys.stderr)
+        sys.exit(1)
+
+    print(
+        "RTT rejected RTT_API_TOKEN: /api/info returned 401 and the refresh-token "
+        f"swap at /api/get_access_token returned {swap.status_code}. The token is "
+        "most likely invalid, expired, or copied with stray whitespace.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 def fetch_leg(leg: dict, day: str, token: str) -> dict:
     url = f"{API_BASE}/rtt/location"
     params = {
@@ -80,7 +119,12 @@ def fetch_leg(leg: dict, day: str, token: str) -> dict:
     if resp.status_code == 204:
         record["no_data"] = True
         return record
-    resp.raise_for_status()
+    if not resp.ok:
+        print(
+            f"{leg['label']}: {resp.status_code} from {resp.url} -> {resp.text[:300]}",
+            file=sys.stderr,
+        )
+        resp.raise_for_status()
     data = resp.json()
 
     services = data.get("services", [])
@@ -110,6 +154,8 @@ def main():
     if not token:
         print("RTT_API_TOKEN environment variable not set", file=sys.stderr)
         sys.exit(1)
+
+    token = resolve_token(token.strip())
 
     day = date.today().isoformat()
 
