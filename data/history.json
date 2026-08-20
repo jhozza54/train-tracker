@@ -53,6 +53,33 @@
       "lateness_minutes": 1,
       "cancelled": false,
       "no_data": false
+    },
+    {
+      "date": "2026-08-20",
+      "leg": "bri_wnm",
+      "scheduled": "17:52",
+      "actual": "17:53",
+      "lateness_minutes": 1,
+      "cancelled": false,
+      "no_data": false
+    },
+    {
+      "date": "2026-08-20",
+      "leg": "bth_bri",
+      "scheduled": "17:22",
+      "actual": "17:25",
+      "lateness_minutes": 3,
+      "cancelled": false,
+      "no_data": false
+    },
+    {
+      "date": "2026-08-20",
+      "leg": "wnm_bth",
+      "scheduled": "07:57",
+      "actual": "08:05",
+      "lateness_minutes": 8,
+      "cancelled": false,
+      "no_data": false
     }
   ]
 }
